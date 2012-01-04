@@ -4,65 +4,63 @@ import Text.Parsec.String
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import Data.List
 
-type Combo = [Trick]
-data Trick = Trick { trickName  :: String
-                   , trickDir   :: Direction
-                   , trickRot   :: Rotation
-                   , trickStart :: Slot
-                   , trickStop  :: Slot
-                   }
-data Direction = Normal | Reverse
-newtype Rotation = Rotation Integer
-data Zone = Pinky | Ring | Middle | Index | Thumb | Palm | Back
-newtype Slot = Slot [Zone]
+import Haspin.Standard.Data
 
-instance Show Slot where
-    show (Slot s) = map showZone s
-      where
-        showZone Pinky = '4'
-        showZone Ring = '3'
-        showZone Middle = '2'
-        showZone Index = '1'
-        showZone Thumb = 'T'
-        showZone Palm = 'P'
-        showZone Back = 'B'
+data ParsedTrick = ParsedTrick { parsedTrickName  :: String
+                               , parsedTrickDir   :: Maybe Direction
+                               , parsedTrickRot   :: Maybe Rotation
+                               , parsedTrickStart :: Maybe Slot
+                               , parsedTrickStop  :: Maybe Slot
+                               }
+  deriving Show
 
-instance Show Rotation where
-    show (Rotation r) = show (fromInteger r / 2)
+defaults = map trickWithDefaults $ fromRight $ parse parseCombo ""
+    "Thumbaround normal 1.0 T12-T1 > \
+    \Sonic normal 1.0 23-12 > \
+    \Pinkyswivel normal 1.0 12-23"
+  where fromRight (Right a) = a
 
-instance Show Trick where
-    show (Trick name dir rot start stop) =
-        name ++ " " ++
-        show dir ++ " " ++
-        show rot ++ " " ++
-        show start ++ "-" ++ show stop
+nameEquivalences = [("Swivel", "Pinkyswivel")]
+trickEquivalence = [("Antigravity", trick "Fingerless Indexaround Reverse 11-11")]
 
-instance Show Direction where
-    show Normal = "normal"
-    show Reverse = "reverse"
+trick = fromRight . parse parseTrick ""
+  where fromRight (Right a) = a
 
-defaults = "Thumbaround normal 1.0 12-12"
-
-parseCombo :: Parser Combo
-parseCombo = trick `sepBy` separator <* eof
+parseCombo :: Parser [ParsedTrick]
+parseCombo = parseTrick `sepBy` separator <* eof
 separator  = whitespace >> string ">" >> whitespace
 whitespace = skipMany space
-trick      = do
+parseTrick = do
     name <- pTrickName
     whitespace
     dir <- optional $ direction <* whitespace
-    rot <- optional $ rotation <* whitespace
-    startstop <- optional $ do
-        start <- slot
-        stop <- optional $string "-" *> slot
-        return (start, stop)
+    rot <- optional $ try $ rotation <* whitespace
+    (start,stop) <- nestedOptional slot (string "-" *> slot)
 
-    let start = maybe (Slot [Index, Middle]) fst startstop
-        stop = fromMaybe start $ maybe Nothing snd startstop
-        dir_ = fromMaybe Normal dir
-        rot_ = fromMaybe (Rotation 2) rot
-    return $ Trick name dir_ rot_ start stop
+    return $ ParsedTrick name dir rot start stop
+  where
+    nestedOptional :: Parser a -> Parser a -> Parser (Maybe a, Maybe a)
+    nestedOptional a b = liftM maymay $ optional $ do
+        a' <- a
+        b' <- optional b
+        return (a', b')
+    maymay :: Maybe (a, Maybe a) -> (Maybe a, Maybe a)
+    maymay Nothing = (Nothing,Nothing)
+    maymay (Just (a, Nothing)) = (Just a,Nothing)
+    maymay (Just (a, Just b)) = (Just a,Just b)
+
+trickWithDefaults (ParsedTrick name dir rot start stop)  =
+    Trick name dir' rot' start' stop'
+  where trickDefaults = find (\t -> name == trickName t) defaults
+        start' = findJust [start, liftM trickStart trickDefaults] $
+            Slot [Index, Middle]
+        stop' = findJust [stop, start, liftM trickStop trickDefaults] start'
+        dir' = findJust [dir, liftM trickDir trickDefaults] Normal
+        rot' = findJust [rot, liftM trickRot trickDefaults] $ Rotation 2
+        findJust :: [Maybe a] -> a -> a
+        findJust l d = fromMaybe d $ msum l
 
 pTrickName = many1 letter
 direction = (string "normal" >> return Normal)
@@ -73,7 +71,7 @@ rotation = do
     half <- (string "0" >> return 0)
         <|> (string "5" >> return 1)
 
-    return $ Rotation $ (read int) * 2 + half
+    return $ Rotation $ read int * 2 + half
 
 slot = liftM Slot $ some ((char '4' >> return Pinky)
                       <|> (char '3' >> return Ring)
@@ -83,4 +81,3 @@ slot = liftM Slot $ some ((char '4' >> return Pinky)
                       <|> (char 'P' >> return Palm)
                       <|> (char 'B' >> return Back)
                       <?> "slot")
-
