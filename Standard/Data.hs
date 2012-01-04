@@ -3,6 +3,7 @@ module Haspin.Standard.Data where
 import Data.List
 
 type Combo = [Trick]
+type InterruptedCombo = [ExtendedTrick]
 data Trick = Trick { trickName  :: String
                    , trickDir   :: Direction
                    , trickRot   :: Rotation
@@ -11,12 +12,34 @@ data Trick = Trick { trickName  :: String
                    }
     deriving Show
 
+data ExtendedTrick = ExtendedTrick { extTrickTrick :: Trick
+                                   , extTrickPush  :: Maybe Slot
+                                   , extTrickSpin  :: Rotation
+                                   , extTrickCatch :: Maybe Slot
+                                   }
+    deriving Show
+
 data Direction = Normal | Reverse deriving Show
 newtype Rotation = Rotation Integer deriving Show
 data Zone = Pinky | Ring | Middle | Index | Thumb | Palm | Back deriving Show
 newtype Slot = Slot [Zone] deriving Show
 
-verboseCombo =  intercalate " > " . map verboseTrick
+verboseExtendedCombo c = inter (map verboseExtendedTrick c)
+                               (intermap separator c)
+  where
+    separator a b = if isHybrid a b then " ~ " else " > "
+    isHybrid a b = extTrickCatch a == Nothing || extTrickPush b == Nothing
+
+    inter l [] = l
+    inter [] l = l
+    inter (x:xs) (y:ys) = x:y:inter xs ys
+
+    -- l being empty is not an exception thanks to lazy eval
+    intermap f l = zipWith f l $ tail l
+
+verboseExtendedTrick = const ""
+
+verboseCombo = intercalate " > " . map verboseTrick
 
 verboseTrick (Trick name dir rot start stop) =
     name ++ " " ++

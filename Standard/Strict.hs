@@ -16,19 +16,28 @@ data ParsedTrick = ParsedTrick { parsedTrickName  :: String
                                }
   deriving Show
 
-defaults = map trickWithDefaults $ fromRight $ parse parseCombo ""
+data ParsedExtended = ParsedExtended { parExtTrick :: ParsedTrick
+                                     , parExtPush  :: Maybe $ Maybe Slot
+                                     , parExtSpin  :: Maybe $ Maybe Slot
+                                     , parExtCatch :: Maybe $ Maybe Slot
+                                     }
+
+defaults = map trickWithDefaults $ unsafeParse
     "Thumbaround normal 1.0 T12-T1 > \
     \Sonic normal 1.0 23-12 > \
     \Pinkyswivel normal 1.0 12-23"
+
+unsafeParse parser parsed = fromRight $! parse parser "(hardcoded)" parsed
   where fromRight (Right a) = a
 
 nameEquivalences = [("Swivel", "Pinkyswivel")]
-trickEquivalence = [("Antigravity", trick "Fingerless Indexaround Reverse 11-11")]
+trickEquivalence =
+    [("Antigravity", unsafeTrick "Fingerless Indexaround Reverse 11-11")]
 
-trick = fromRight . parse parseTrick ""
-  where fromRight (Right a) = a
+unsafeTrick = unsafeParse trick
 
 parseCombo :: Parser [ParsedTrick]
+parseExtendedCombo :: Parser [ParsedExtended]
 parseCombo = parseTrick `sepBy` separator <* eof
 separator  = whitespace >> string ">" >> whitespace
 whitespace = skipMany space
