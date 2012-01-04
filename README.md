@@ -5,6 +5,7 @@ Haspin aims to provide a set of tools to parse and manipulate descriptions of
 pen spinning tricks and combos (hereafter "breakdowns")
 
 Some of the goals are:
+
 * Writing formal definitions for several languages used for breakdowns, among
   which:
   * The standard, international notation used in occidental communities
@@ -15,7 +16,7 @@ Some of the goals are:
     and
     [Lindor](http://thefpsb.penspinning.fr/tricks/un-langage-informatique-descriptif-des-combos-t12383.html)
     in the FPSB lab
-  * At least one Haskell-hosted DSL that is yet to be defined
+* At least one Haskell-hosted DSL that is yet to be defined
 * Provide both strict parsers and lenient ones; the lenient ones should try to
   successfully understand most breakdowns out there, possibly detecting the
   language.
@@ -23,7 +24,8 @@ Some of the goals are:
 * Supporting conversions between some of these languages
 * Supporting printing the "most explicit" and "most implicit" version of a breakdown
 
-Things I don't know and may be useful to this project:
+Things that I don't know and that may be useful to this project:
+
 * Are there labs similar to the UPSB lab and the FPSB lab in other communities?
 * I think the Korean and Thai use their own notation too? I would like to
   support them too, but I don't speak their language so I would need external
