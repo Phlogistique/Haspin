@@ -16,7 +16,7 @@ Some of the goals are:
     and
     [Lindor](http://thefpsb.penspinning.fr/tricks/un-langage-informatique-descriptif-des-combos-t12383.html)
     in the FPSB lab
-* At least one Haskell-hosted DSL that is yet to be defined
+  * At least one Haskell-hosted DSL that is yet to be defined
 * Provide both strict parsers and lenient ones; the lenient ones should try to
   successfully understand most breakdowns out there, possibly detecting the
   language.
@@ -31,7 +31,7 @@ Things that I don't know and that may be useful to this project:
   support them too, but I don't speak their language so I would need external
   info.
 
-The parsers are written with the Parsec library. The code does not make use of
+The parsers are written with the Parsec library. The code does not make heavy use of
 any GHC extension for the time being, but this could change.
 
 This is an early work in progress. Nothing really interesting yet.
