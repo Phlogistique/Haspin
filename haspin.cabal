@@ -1,0 +1,25 @@
+name:               Haspin
+version:            0.0
+homepage:           http://github.com/Phlogistique/Haspin
+synopsis:           Haskell Pen Spinning Toolkit
+description:
+    Haspin aims to provide a set of tools to parse and manipulate
+    descriptions of pen spinning tricks and combos ("breakdowns")
+    
+    Some of the goals are:
+    
+    * Writing formal definitions for several languages used for breakdowns
+    * Providing translators, transformers, pretty printers and generators
+      for pen spinning combos.
+category:           Language
+license:            WTFPL
+license-file:       COPYING
+author:             Noé Rubinsein
+maintainer:         noe.rubinstein+haspin@gmail.com
+build-type:         Simple
+library
+    exposed-modules: Haspin.Standard.Data
+                     Haspin.Standard.Logic
+                     Haspin.Standard.StrictParser
+    build-depends: base, parsec
+
