@@ -14,6 +14,7 @@ import Haspin.Standard.Data
 import Haspin.Standard.StrictParser
 import Control.Monad
 import Data.List
+import Data.DList (singleton, snoc, toList)
 import Data.Maybe
 
 -- | Data about the default rotation number and fingerslots for each trick; it
@@ -21,7 +22,8 @@ import Data.Maybe
 -- concision. This is, though, unsafe and ugly; it would be better if we
 -- could somehow get Template Haskell to work with breakdowns without
 -- rewriting all the parsers.
-defaults = map trickWithDefaults $! unsafeCombo
+defaults = map trickWithDefaults $! parseDefaults
+parseDefaults = unsafeCombo
     "Thumbaround normal 1.0 T12-T1 > \
     \Sonic normal 1.0 23-12 > \
     \Pinkyswivel normal 1.0 12-23"
@@ -46,10 +48,10 @@ trickWithDefaults (ParsedTrick name dir rot start stop)  =
         findJust l d = fromMaybe d $ msum l
 
 extCombo :: ParsedExtCombo -> ExtCombo
-extCombo = extCombo' Nothing 
+extCombo = toList . extCombo' Nothing 
   where 
-    extCombo' s1 (ParsedExtCombo t s2 c) = extTrick s1 t (Just s2) : extCombo' (Just s2) c
-    extCombo' s1 (ParsedExtComboEnd t) = extTrick s1 t Nothing : []
+    extCombo' s1 (ParsedExtCombo c s2 t) = extCombo' (Just s2) c `snoc` extTrick s1 t (Just s2)
+    extCombo' s1 (ParsedExtComboTrick t) = singleton $ extTrick s1 t Nothing
 
 extTrick :: Maybe Separator -> ParsedExtTrick -> Maybe Separator -> ExtTrick
 extTrick s1 (ParsedExtTrick t p s c) s2 = ExtTrick t' p' s' c'

@@ -5,8 +5,8 @@ import Text.Parsec.String
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import Data.Char
 import Data.List
-
 
 import Haspin.Standard.Data
 
@@ -24,10 +24,10 @@ data ParsedExtTrick = ParsedExtTrick { parExtTrick :: ParsedTrick
                                      , parExtCatch :: Maybe (Maybe Slot)
                                      }
   deriving Show
-data ParsedExtCombo = ParsedExtCombo { parExtComTrick  :: ParsedExtTrick,
+data ParsedExtCombo = ParsedExtCombo { parExtComLeft   :: ParsedExtCombo,
                                        parExtComSep    :: Separator,
-                                       parExtComTricks :: ParsedExtCombo }
-                    | ParsedExtComboEnd ParsedExtTrick
+                                       parExtComRight  :: ParsedExtTrick }
+                    | ParsedExtComboTrick ParsedExtTrick
   deriving Show
 
 unsafeParse parser parsed = fromRight $! parse parser "(hardcoded)" parsed
@@ -36,28 +36,40 @@ unsafeCombo = unsafeParse parseCombo
 unsafeTrick = unsafeParse parseTrick
 
 parseExtCombo :: Parser ParsedExtCombo
-parseExtCombo = (try $ do t <- parseExtTrick
-                          s <- parseSeparator
-                          c <- parseExtCombo
-                          return $ ParsedExtCombo t s c)
-            <|> (liftM ParsedExtComboEnd parseExtTrick <* eof)
+parseExtCombo = chainl1 parseExtTrick' parseSeparator'' <* eof
+  where
+    parseExtTrick' :: Parser ParsedExtCombo
+    parseExtTrick' = liftM ParsedExtComboTrick parseExtTrick
 
-parseExtTrick = do
+    parseSeparator' :: Separator -> ParsedExtCombo -> ParsedExtCombo -> ParsedExtCombo
+    parseSeparator' sep t1 (ParsedExtComboTrick t2) = ParsedExtCombo t1 sep t2
+
+    parseSeparator'' :: Parser (ParsedExtCombo -> ParsedExtCombo -> ParsedExtCombo)
+    parseSeparator'' = do
+        sep <- parseSeparator
+        return $ parseSeparator' sep
+    -- parseSeparator' c@(ParsedExtCombo {}) (ParsedExtComboTrick t) =
+    --     ParsedExtCombo c (liftM parseSeparator) t
+
+parseExtTrick = lexeme $ do
     t <- parseTrick
     p <- optional $ bracketed "p" $ optional slot
     s <- optional $ bracketed "s" rotation
     c <- optional $ bracketed "c" $ optional slot
     return $ ParsedExtTrick t p s c
   where
-    bracketed name parser = open name *> parser <* close
+    bracketed name parser = try (open name *> parser <* close)
     open name = lexeme $ string $ "[" ++ name
     close = lexeme $ string "]"
 
 lexeme = (<* whitespace)
-whitespace = skipMany space
+lexeme1 = (<* whitespace1)
+whitespace1 = skipMany1 space
+whitespace = whitespace1 <|> return ()
 
 parseCombo = parseTrick `sepBy` lexeme (string ">") <* eof
 
+parseSeparator :: Parser Separator
 parseSeparator = lexeme ((SepCatch <$ try (string ">~"))
                      <|> (SepPush  <$ try (string "~>"))
                      <|> (SepCont  <$ string "~")
@@ -68,11 +80,13 @@ parseSeparator = lexeme ((SepCatch <$ try (string ">~"))
 parseTrick = lexeme $ do
     name <- parseTrickName
     whitespace
-    dir <- optional $ direction <* whitespace
-    rot <- optional $ try $ rotation <* whitespace
-    (start,stop) <- nestedOptional slot (string "-" *> slot)
+    dir <- try $ optional $ direction <* whitespace
+    rot <- try $ optional $ rotation <* whitespace
+    (start,stop) <- slots
 
     return $ ParsedTrick name dir rot start stop
+
+slots = nestedOptional slot (string "-" *> slot)
   where
     nestedOptional :: Parser a -> Parser a -> Parser (Maybe a, Maybe a)
     nestedOptional a b = liftM maymay $ optional $ do
@@ -85,10 +99,32 @@ parseTrick = lexeme $ do
     maymay (Just (a, Nothing)) = (Just a,Nothing)
     maymay (Just (a, Just b)) = (Just a,Just b)
 
-parseTrickName = many1 letter
+parseTrickName = do words <- manyTill (lexeme $ many1 letter) $
+                        lookAhead $ try $ do
+                            skip direction
+                                <|> skip rotation
+                                <|> skip slots
+                            notFollowedBy letter
+                    return $ intercalate " " words
 
-direction = (Normal <$ string "normal")
-        <|> (Reverse <$ string "reverse")
+stringi name = walk name >> return name
+  where
+    walk []     = return ()
+    walk (c:cs) = (caseChar c <?> msg) >> walk cs
+
+    caseChar c  | isAlpha c  = char (toLower c) <|> char (toUpper c)
+                | otherwise  = char c
+
+    msg         = show name
+
+
+skip p = do
+    p
+    return ()
+
+direction = (Normal <$ stringi "normal")
+        <|> (Reverse <$ stringi "reverse")
+
 rotation = do
     int <- some digit 
     string "."
@@ -96,12 +132,12 @@ rotation = do
         <|> (1 <$ string "5")
 
     return $ Rotation $ read int * 2 + half
+  <?> "rotation"
 
-slot = liftM Slot $ some ((Pinky  <$ char '4')
-                      <|> (Ring   <$ char '3')
-                      <|> (Middle <$ char '2')
-                      <|> (Index  <$ char '1')
-                      <|> (Thumb  <$ char 'T')
-                      <|> (Palm   <$ char 'P')
-                      <|> (Back   <$ char 'B')
-                      <?> "slot")
+slot = (liftM Slot $ some ((Pinky  <$ char '4')
+                       <|> (Ring   <$ char '3')
+                       <|> (Middle <$ char '2')
+                       <|> (Index  <$ char '1')
+                       <|> (Thumb  <$ char 'T')
+                       <|> (Palm   <$ char 'P')
+                       <|> (Back   <$ char 'B'))) <?> "slot"
