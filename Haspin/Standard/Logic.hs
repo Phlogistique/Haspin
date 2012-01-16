@@ -48,10 +48,10 @@ trickWithDefaults (ParsedTrick name dir rot start stop)  =
         findJust l d = fromMaybe d $ msum l
 
 extCombo :: ParsedExtCombo -> ExtCombo
-extCombo = toList . extCombo' Nothing 
+extCombo c = toList $ extCombo' Nothing c Nothing
   where 
-    extCombo' s1 (ParsedExtCombo c s2 t) = extCombo' (Just s2) c `snoc` extTrick s1 t (Just s2)
-    extCombo' s1 (ParsedExtComboTrick t) = singleton $ extTrick s1 t Nothing
+    extCombo' s1 (ParsedExtCombo c s' t) s2 = extCombo' s1 c (Just s') `snoc` extTrick (Just s') t s2
+    extCombo' s1 (ParsedExtComboTrick t) s2 = singleton $ extTrick s1 t s2
 
 extTrick :: Maybe Separator -> ParsedExtTrick -> Maybe Separator -> ExtTrick
 extTrick s1 (ParsedExtTrick t p s c) s2 = ExtTrick t' p' s' c'
