@@ -10,7 +10,17 @@ data Trick = Trick { trickName  :: String
                    , trickRot   :: Rotation
                    , trickStart :: Slot
                    , trickStop  :: Slot
+                   , trickNotes :: [TrickAnnotation]
                    }
+    deriving Show
+
+data TrickAnnotation = PalmUp
+                     | PalmDown 
+                     | PalmSide 
+                     | WeissanStyle 
+                     | KoreanStyle 
+                     | SwivelStyle 
+                     | TrickAnnotation String
     deriving Show
 
 data ExtTrick = ExtTrick { extTrickTrick :: Trick
@@ -54,7 +64,7 @@ verboseExtTrick (ExtTrick t p s c) =
 
 verboseCombo = intercalate " > " . map verboseTrick
 
-verboseTrick (Trick name dir rot start stop) =
+verboseTrick (Trick name dir rot start stop _) =
     name ++ " " ++
     showDir dir ++ " " ++
     showRot rot ++ " " ++

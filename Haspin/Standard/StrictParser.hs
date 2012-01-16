@@ -15,6 +15,7 @@ data ParsedTrick = ParsedTrick { parsedTrickName  :: String
                                , parsedTrickRot   :: Maybe Rotation
                                , parsedTrickStart :: Maybe Slot
                                , parsedTrickStop  :: Maybe Slot
+                               , parsedTrickNote  :: [TrickAnnotation]
                                }
   deriving Show
 
@@ -32,7 +33,10 @@ data ParsedExtCombo = ParsedExtCombo { parExtComLeft   :: ParsedExtCombo,
 
 unsafeParse parser parsed = fromRight $! parse parser "(hardcoded)" parsed
   where fromRight (Right a) = a
+
+unsafeCombo :: String -> [ParsedTrick]
 unsafeCombo = unsafeParse parseCombo
+unsafeTrick :: String -> ParsedTrick
 unsafeTrick = unsafeParse parseTrick
 
 parseExtCombo :: Parser ParsedExtCombo
@@ -76,15 +80,23 @@ parseSeparator = lexeme ((SepCatch <$ try (string ">~"))
                      <|> (SepThen  <$ string ">")
                      <?> "trick separator")
 
-
 parseTrick = lexeme $ do
+    startAnnotations <- many parseAnnotation 
+    trick <- parseTrick'
+    endAnnotations <- many parseAnnotation
+    return $ annotate trick (startAnnotations ++ endAnnotations)
+  where
+    annotate :: ParsedTrick -> [TrickAnnotation] -> ParsedTrick
+    annotate trick notes = trick { parsedTrickNote = parsedTrickNote trick ++ notes }
+
+parseTrick' = lexeme $ do
     name <- parseTrickName
     whitespace
     dir <- try $ optional $ direction <* whitespace
     rot <- try $ optional $ rotation <* whitespace
     (start,stop) <- slots
 
-    return $ ParsedTrick name dir rot start stop
+    return $ ParsedTrick name dir rot start stop []
 
 slots = nestedOptional slot (string "-" *> slot)
   where
@@ -134,6 +146,14 @@ rotation = do
     return $ Rotation $ read int * 2 + half
   <?> "rotation"
 
+parseAnnotation = lexeme $ do
+    string "("
+    text <- manyTill anyChar (string ")")
+    string ")"
+
+    return $ TrickAnnotation text
+
+
 slot = (liftM Slot $ some ((Pinky  <$ char '4')
                        <|> (Ring   <$ char '3')
                        <|> (Middle <$ char '2')
@@ -141,3 +161,4 @@ slot = (liftM Slot $ some ((Pinky  <$ char '4')
                        <|> (Thumb  <$ char 'T')
                        <|> (Palm   <$ char 'P')
                        <|> (Back   <$ char 'B'))) <?> "slot"
+

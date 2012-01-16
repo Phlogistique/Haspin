@@ -36,8 +36,8 @@ trickEquivalence =
 -- the unknown components have been replaced with either defaults found in
 -- 'defaults', or general purpose default values (Normal 1.0 12-12) in
 -- compliance with the convention.
-trickWithDefaults (ParsedTrick name dir rot start stop)  =
-    Trick name dir' rot' start' stop'
+trickWithDefaults (ParsedTrick name dir rot start stop _)  =
+    Trick name dir' rot' start' stop' [] 
   where trickDefaults = find (\t -> name == trickName t) defaults
         start' = findJust [start, liftM trickStart trickDefaults] $
             Slot [Index, Middle]
