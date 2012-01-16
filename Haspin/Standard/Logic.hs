@@ -65,7 +65,9 @@ extTrick s1 (ParsedExtTrick t p s c) s2 = ExtTrick t' p' s' c'
            Just SepCont  -> notouch c
            Just SepPush  -> notouch c
            _             -> touch c
-    s' = trickRot t'
+    s' = case s of
+           Just n  -> n
+           Nothing -> trickRot t'
 
     touch Nothing          = Just $ Slot []
     touch (Just Nothing)   = Just $ Slot []

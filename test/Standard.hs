@@ -21,6 +21,8 @@ main = do
         parsedCombo = parse parseExtCombo "(test)" combo
     case parsedCombo of
       Left err  -> print combo >> print err
-      Right res -> putStrLn $ verboseExtCombo $ extCombo res
+      Right res -> do
+        putStrLn combo
+        putStrLn $ verboseExtCombo $ extCombo res
 
 
