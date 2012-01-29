@@ -74,13 +74,13 @@ showRot (Rotation r) = show (fromInteger r / 2)
 showDir Normal = "normal"
 showDir Reverse = "reverse"
 showSlot (Slot s) = map showZone s
-  where
-    showZone Pinky = '4'
-    showZone Ring = '3'
-    showZone Middle = '2'
-    showZone Index = '1'
-    showZone Thumb = 'T'
-    showZone Palm = 'P'
-    showZone Back = 'B'
+
+showZone Pinky = '4'
+showZone Ring = '3'
+showZone Middle = '2'
+showZone Index = '1'
+showZone Thumb = 'T'
+showZone Palm = 'P'
+showZone Back = 'B'
 
 
