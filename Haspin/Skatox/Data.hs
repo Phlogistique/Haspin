@@ -14,7 +14,7 @@ data SZone = SZone { szZone     :: Zone
 
 data Phalange = PhalangeX | PhalangeY | PhalangeZ | PhalangeNone deriving Show
 data Axe = AxeSingle Axe' | AxeCouple Axe' Axe' | AxeNone deriving Show
-data Axe' = AxeVert | AxeHoriz | AxeFacing | AxeOblique deriving Show
+data Axe' = AxeVert | AxeHoriz | AxeFacing deriving Show
 
 -- BEGIN duplicated from Haspin.Standard.Data for reasons I can't understand
 data Direction = Normal | Reverse deriving Show
@@ -45,13 +45,12 @@ showSlot (Slot sz1 a sz2) = concatMap showSZone sz1
                          ++ concatMap showSZone sz2
 
 showAxe (AxeSingle a) = showAxe' a
-showAxe (AxeCouple a b) = showAxe' a ++ showAxe' b
+showAxe (AxeCouple a b) = showAxe' a ++ "/" ++ showAxe' b
 showAxe AxeNone = "?"
 
 showAxe' AxeVert = "|"
 showAxe' AxeHoriz = "_"
 showAxe' AxeFacing = "."
-showAxe' AxeOblique = "/"
 
 showSZone (SZone s True p) = "(" ++ showSZone (SZone s False p) ++ ")"
 showSZone (SZone s False p) = [showZone s] ++ showPhalange p

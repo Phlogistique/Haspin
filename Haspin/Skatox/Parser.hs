@@ -69,14 +69,16 @@ parseZone = Pinky  <$ char '4'
         <|> Back   <$ char 'B'
         <?> "zone"
 
-parseAxe = do a <- parseAxe'
-              AxeCouple a <$> parseAxe' <|> return (AxeSingle a)
-
-    <|> AxeNone <$ char '?'
+parseAxe =
+    do { a <- parseAxe'
+       ; do { char '/'
+            ; b <- parseAxe'
+            ; return (AxeCouple a b)
+            } <|> return (AxeSingle a)
+       } <|> AxeNone <$ char '?'
 
 parseAxe' = AxeVert    <$ char '|'
         <|> AxeHoriz   <$ char '_'
         <|> AxeFacing  <$ char '.'
-        <|> AxeOblique <$ char '/'
 
 
