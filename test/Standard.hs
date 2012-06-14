@@ -22,7 +22,11 @@ main = do
     case parsedCombo of
       Left err  -> print combo >> print err
       Right res -> do
+        let ec = extCombo res
         putStrLn combo
-        putStrLn $ verboseExtCombo $ extCombo res
+        putStrLn "Pretty-printed:"
+        putStrLn $ verboseExtCombo ec
+        putStrLn "Dumbified:"
+        putStrLn $ verboseExtCombo $ dumbify ec
 
 

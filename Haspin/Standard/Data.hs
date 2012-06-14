@@ -2,6 +2,7 @@
 module Haspin.Standard.Data where
 
 import Data.List
+import Data.Function
 
 type Combo = [Trick]
 type ExtCombo = [ExtTrick]
@@ -12,7 +13,14 @@ data Trick = Trick { trickName  :: String
                    , trickStop  :: Slot
                    , trickNotes :: [TrickAnnotation]
                    }
-    deriving Show
+    deriving (Show, Eq)
+
+data ExtTrick = ExtTrick { extTrickTrick :: Trick
+                         , extTrickPush  :: Maybe Slot
+                         , extTrickSpin  :: Rotation
+                         , extTrickCatch :: Maybe Slot
+                         }
+    deriving (Show, Eq)
 
 data TrickAnnotation = PalmUp
                      | PalmDown 
@@ -21,19 +29,27 @@ data TrickAnnotation = PalmUp
                      | KoreanStyle 
                      | SwivelStyle 
                      | TrickAnnotation String
-    deriving Show
+    deriving (Show, Eq)
 
-data ExtTrick = ExtTrick { extTrickTrick :: Trick
-                         , extTrickPush  :: Maybe Slot
-                         , extTrickSpin  :: Rotation
-                         , extTrickCatch :: Maybe Slot
-                         }
-    deriving Show
-data Separator = SepThen | SepCatch | SepPush | SepCont deriving Show
-data Direction = Normal | Reverse deriving Show
-newtype Rotation = Rotation Integer deriving Show
-data Zone = Pinky | Ring | Middle | Index | Thumb | Palm | Back deriving Show
-newtype Slot = Slot [Zone] deriving Show
+data Separator = SepThen | SepCatch | SepPush | SepCont
+  deriving (Show, Eq)
+data Direction = Normal | Reverse
+  deriving (Show, Eq)
+newtype Rotation = Rotation {rotation :: Integer}
+  deriving (Show, Eq)
+
+instance Num Rotation where -- couldn't this be shortened?
+    (Rotation r) + (Rotation r') = Rotation $ r + r'
+    (Rotation r) - (Rotation r') = Rotation $ r - r'
+    (Rotation r) * (Rotation r') = Rotation $ r * r'
+    abs (Rotation r) = Rotation (abs r)
+    signum (Rotation r) = Rotation (signum r)
+    fromInteger = Rotation
+
+data Zone = Pinky | Ring | Middle | Index | Thumb | Palm | Back
+  deriving (Show, Eq, Ord)
+newtype Slot = Slot [Zone]
+  deriving (Show, Eq)
 
 verboseExtCombo :: ExtCombo -> String
 verboseExtCombo c = concat $ inter (map verboseExtTrick c)
@@ -82,5 +98,4 @@ showZone Index = '1'
 showZone Thumb = 'T'
 showZone Palm = 'P'
 showZone Back = 'B'
-
 

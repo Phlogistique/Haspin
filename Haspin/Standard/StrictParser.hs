@@ -58,7 +58,7 @@ parseExtCombo = chainl1 parseExtTrick' parseSeparator'' <* eof
 parseExtTrick = lexeme $ do
     t <- parseTrick
     p <- optional $ bracketed "p" $ optional slot
-    s <- optional $ bracketed "s" rotation
+    s <- optional $ bracketed "s" parseRot
     c <- optional $ bracketed "c" $ optional slot
     return $ ParsedExtTrick t p s c
   where
@@ -93,7 +93,7 @@ parseTrick' = lexeme $ do
     name <- parseTrickName
     whitespace
     dir <- try $ optional $ direction <* whitespace
-    rot <- try $ optional $ rotation <* whitespace
+    rot <- try $ optional $ parseRot <* whitespace
     (start,stop) <- slots
 
     return $ ParsedTrick name dir rot start stop []
@@ -114,7 +114,7 @@ slots = nestedOptional slot (string "-" *> slot)
 parseTrickName = do words <- manyTill (lexeme $ many1 letter) $
                         lookAhead $ try $ do
                             skip direction
-                                <|> skip rotation
+                                <|> skip parseRot
                                 <|> skip slots
                             notFollowedBy letter
                     return $ intercalate " " words
@@ -137,7 +137,7 @@ skip p = do
 direction = (Normal <$ stringi "normal")
         <|> (Reverse <$ stringi "reverse")
 
-rotation = do
+parseRot = do
     int <- some digit 
     string "."
     half <- (0 <$ string "0")
