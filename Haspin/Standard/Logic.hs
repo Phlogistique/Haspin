@@ -13,6 +13,7 @@
 module Haspin.Standard.Logic where
 import Haspin.Standard.Data
 import Haspin.Standard.StrictParser
+import Control.Arrow ((***))
 import Control.Monad
 import Data.List
 import Data.DList (singleton, snoc, toList)
@@ -55,6 +56,8 @@ extCombo c = toList $ extCombo' Nothing c Nothing
     extCombo' s1 (ParsedExtCombo c s' t) s2 = extCombo' s1 c (Just s') `snoc` extTrick (Just s') t s2
     extCombo' s1 (ParsedExtComboTrick t) s2 = singleton $ extTrick s1 t s2
 
+touch = Just $ Slot []
+
 extTrick :: Maybe Separator -> ParsedExtTrick -> Maybe Separator -> ExtTrick
 extTrick s1 (ParsedExtTrick t p s c) s2 = ExtTrick t' p' s' c'
   where
@@ -62,21 +65,21 @@ extTrick s1 (ParsedExtTrick t p s c) s2 = ExtTrick t' p' s' c'
     p' = case s1 of
            Just SepCont  -> notouch p
            Just SepCatch -> notouch p
-           _             -> touch p
+           _             -> dotouch p
     c' = case s2 of
            Just SepCont  -> notouch c
            Just SepPush  -> notouch c
-           _             -> touch c
+           _             -> dotouch c
     s' = case s of
            Just n  -> n
            Nothing -> trickRot t'
 
-    touch Nothing          = Just $ Slot []
-    touch (Just Nothing)   = Just $ Slot []
-    touch (Just something) = something
+    dotouch Nothing          = touch
+    dotouch (Just Nothing)   = touch
+    dotouch (Just something) = something
     
     notouch Nothing          = Nothing
-    notouch (Just Nothing)   = Just $ Slot []
+    notouch (Just Nothing)   = touch
     notouch (Just something) = something
 
 dumbify :: ExtCombo -> ExtCombo
@@ -92,48 +95,50 @@ dumbify (e1@(ExtTrick {extTrickTrick = t1})
           }
       ):xs
 dumbify c = c
-    
-isInterrupted :: ExtTrick -> Boolean
-isInterrupted (ExtTrick { extTrickPush = Just []
-                        , extTrickCatch = Just []
+
+isInterrupted :: ExtTrick -> Bool
+isInterrupted (ExtTrick { extTrickPush = Just _
+                        , extTrickCatch = Just _
                         , extTrickTrick = Trick { trickRot = r }
                         , extTrickSpin = r'
-                        }
-    = r == r'
-isInterrupted _ = False
+                        })
+    = r /= r'
+isInterrupted _ = True
 
-instance Ord Zone where
-    compare z1 z2 | z1s < z2s && z1e <= z2e = LT
-                  | z1s <= z2s && z1e < z2e = LT
-                  | z1s > z2s && z1e >= z2e = GT
-                  | z1s >= z2s && z1e > z2e = GT
-                  | otherwise               = EQ
+instance Ord Slot where
+    compare (Slot z1) (Slot z2) | z1s < z2s && z1e <= z2e = LT
+                                | z1s <= z2s && z1e < z2e = LT
+                                | z1s > z2s && z1e >= z2e = GT
+                                | z1s >= z2s && z1e > z2e = GT
+                                | otherwise               = EQ
 
       where z1s = minimum z1
             z1e = maximum z1
             z2s = minimum z2
             z2e = maximum z2
 
-baseTrick t@(trickRot -> r) = ExtTrick t (Just []) r (Just [])
+baseTrick t@(trickRot -> r) = ExtTrick t (Just $ Slot []) r (Just $ Slot [])
 uninterrupted = baseTrick . extTrickTrick
 
 extTrickStop = trickStop . extTrickTrick
 extTrickStart = trickStart . extTrickTrick
 extTrickRot = trickRot . extTrickTrick
+extTrickName = trickName . extTrickTrick
 
 -- This tries to find which portion exactly of a trick is executed in an
 -- interrupted trick. It is actually ambiguous and non-trivial.
 portion :: ExtTrick -> ExtTrick -> ExtTrick -> Maybe (Rotation, Rotation)
 portion t before after = portion' t (extTrickStop before) (extTrickStart after)
 
-portion' :: ExtTrick -> Zone -> Zone -> Maybe (Rotation, Rotation)
+portion' :: ExtTrick -> Slot -> Slot -> Maybe (Rotation, Rotation)
 portion' (portion1 -> p@(Just _)) _ _ = p
 portion' _ _ _ = Nothing -- The default case is for when we really don't know.
                          -- Shouldn't I use the List/non-determinist monad here instead?
 
 portion1 :: ExtTrick -> Maybe (Rotation, Rotation)
-portion1 (ExtTrick (trickRot -> rot) (Just _) s Nothing ) _ _ = Just (Rotation 0, spin)
-portion1 (ExtTrick (trickRot -> rot) Nothing  s (Just _)) _ _ = Just (rot - spin, rot)
+portion1 (ExtTrick (trickRot -> rot) (Just _) spin Nothing ) = Just (Rotation 0, spin)
+portion1 (ExtTrick (trickRot -> rot) Nothing  spin (Just _)) = Just (rot - spin, rot)
+portion1 _ = Nothing
 
 
 {-- This assumption is incorrect. For now, let's settle for just considering that a push means it may start here
@@ -146,8 +151,9 @@ mayStartAtBeginning _ = False
 
 takeComboPart :: Rotation -> Rotation -> [ExtTrick] -> [ExtTrick]
 takeComboPart 0 0 _ = []
-takeComboPart 0 stop (x@(extTrickSpin -> spin):xs) | stop >= spin = x : takeComboPart 0 (stop - spin) xs
-                                                   | otherwise    = x { extTrickSpin = stop }
+takeComboPart 0 stop (x@(extTrickSpin -> spin):xs) | stop > spin = x : takeComboPart 0 (stop - spin) xs
+                                                   | stop < spin = return $ x { extTrickSpin = stop, extTrickCatch = Nothing }
+                                                   | otherwise   = return $ x
 takeComboPart start stop (x@(extTrickSpin -> spin):xs) | start >= spin = takeComboPart (start - spin) (stop - spin) xs
                                                        | otherwise     = x { extTrickPush = Nothing
                                                                            , extTrickSpin = spin - start}
@@ -157,16 +163,15 @@ takeComboPart _ _ [] = []
 sortTuple (a,b) | GT <- compare a b = (b,a)
 sortTuple x = x 
 
-aroundName start stop = aroundName' (start,stop) ++ "Around"
-  where aroundName' (maximum &&& minimum . sortTuple -> (low, high)) | low == high = show start
-                                                                     | otherwise   = show start ++ show stop
-
+aroundName (Slot start) (Slot stop) = aroundName' (start,stop) ++ "Around"
+  where aroundName' ((maximum *** minimum) . sortTuple -> (low, high)) | low == high = show start
+                                                                       | otherwise   = show start ++ show stop 
 -- the nice version decomposes when it can, and leaves the rest as-is
 decompose1 (decomposeAll1 -> Just e) = e
-decompose1 e = e
+decompose1 e = return e
 
 -- the un-nice version decomposes until it can't do more, or returns Nothing to complain
-decomposeAll1 (e@(ExtTrick {extTrickTrick = t})
+decomposeAll1 (e@(ExtTrick {extTrickTrick = t}))
     | isInterrupted e, Just (r,r') <- portion1 e
     = Just $ takeComboPart r r' $ decompose1 $ uninterrupted e
 
@@ -175,7 +180,7 @@ decomposeAll1 (e@(ExtTrick {extTrickTrick = t})
                                             , trickRot   = Rotation 2
                                             , trickStop  = trickStart t
                                             }
-                        , extTrickPush  = Just []
+                        , extTrickPush  = touch
                         , extTrickSpin  = Rotation 2
                         , extTrickCatch = Nothing
                         }
@@ -183,12 +188,12 @@ decomposeAll1 (e@(ExtTrick {extTrickTrick = t})
                                             , trickDir   = if trickStart t <= trickStop t then Normal else Reverse
                                             , trickRot   = Rotation 1
                                             }
-                        , extTrickPush  = Just []
+                        , extTrickPush  = touch
                         , extTrickSpin  = Rotation 2
                         , extTrickCatch = Nothing
                         }
              ]
-    | isFundamental e = Just e
+    | isFundamental e = Just [e]
     | otherwise = Nothing
 
 isFundamental (extTrickName -> n) = n `elem` ["Charge", "Wiper"] || ("Around" `isSuffixOf` n) -- This is terrible, where are regexen?

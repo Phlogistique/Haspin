@@ -36,7 +36,7 @@ data Separator = SepThen | SepCatch | SepPush | SepCont
 data Direction = Normal | Reverse
   deriving (Show, Eq)
 newtype Rotation = Rotation {rotation :: Integer}
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 instance Num Rotation where -- couldn't this be shortened?
     (Rotation r) + (Rotation r') = Rotation $ r + r'
